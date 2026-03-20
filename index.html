@@ -194,7 +194,7 @@ async function loadData() {
     const vBar = Math.round((t.viewsWeek / maxViews) * 100);
     const eBar = Math.round((t.expWeek   / maxExp)   * 100);
     return `<div class="token-row">
-      <div class="token-code" style="cursor:pointer" onclick="window.open('https://urielshavat.github.io/MoneyBoss?token=${t.token}','_blank')" title="פתח את חשבון ${t.token}">${t.token}</div>
+      <div class="token-code" style="cursor:pointer" onclick="openPreview('${t.token}')" title="פתח את חשבון ${t.token}">${t.token}</div>
       <div class="col-created">
         <div class="created-date">${formatDate(t.created_at)}</div>
         <div class="created-ago">${timeAgo(t.created_at)}</div>
@@ -259,6 +259,37 @@ async function loadData() {
 }
 
 loadData();
+</script>
+<!-- Preview panel -->
+<div id="previewPanel" style="display:none;margin-top:2rem">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+    <div style="font-size:0.7rem;color:var(--sub);text-transform:uppercase;letter-spacing:0.1em">
+      תצוגה: <span id="previewLabel" style="color:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:0.9rem;letter-spacing:0.18em"></span>
+    </div>
+    <button onclick="closePreview()" style="background:transparent;border:1px solid var(--border);color:var(--sub);padding:0.3rem 0.75rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-family:'Heebo',sans-serif;transition:all 0.2s" onmouseover="this.style.borderColor='var(--warn)';this.style.color='var(--warn)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--sub)'">✕ סגור</button>
+  </div>
+  <iframe id="previewFrame"
+    style="width:100%;height:780px;border:1px solid var(--border);border-radius:12px;background:#0a0a0f"
+    src="about:blank">
+  </iframe>
+</div>
+
+<script>
+function openPreview(token) {
+  const panel = document.getElementById('previewPanel');
+  const frame = document.getElementById('previewFrame');
+  const label = document.getElementById('previewLabel');
+  label.textContent = token;
+  frame.src = 'https://urielshavat.github.io/MoneyBoss?token=' + token;
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function closePreview() {
+  const panel = document.getElementById('previewPanel');
+  const frame = document.getElementById('previewFrame');
+  panel.style.display = 'none';
+  frame.src = 'about:blank';
+}
 </script>
 </body>
 </html>
