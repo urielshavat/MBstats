@@ -75,6 +75,11 @@
   .loading { color: var(--muted); text-align: center; padding: 3rem; font-size: 0.9rem; }
   @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
   .fade { animation: fadeUp 0.3s ease forwards; }
+  @media (max-width: 600px) {
+    .col-created { display: none; }
+    .table-header { grid-template-columns: 110px 130px 130px 100px !important; }
+    .token-row    { grid-template-columns: 110px 130px 130px 100px !important; }
+  }
 </style>
 </head>
 <body>
@@ -103,7 +108,7 @@
   <div class="table-title">משתמשים — ממוינים לפי כניסות</div>
   <div class="table-header">
     <div>טוקן</div>
-    <div>נוצר / גיל</div>
+    <div class="col-created">נוצר / גיל</div>
     <div>כניסות</div>
     <div>הוצאות</div>
     <div style="padding-right:8px">כניסות לאורך זמן</div>
@@ -190,7 +195,7 @@ async function loadData() {
     const eBar = Math.round((t.expWeek   / maxExp)   * 100);
     return `<div class="token-row">
       <div class="token-code" style="cursor:pointer" onclick="window.open('https://urielshavat.github.io/MoneyBoss?token=${t.token}','_blank')" title="פתח את חשבון ${t.token}">${t.token}</div>
-      <div>
+      <div class="col-created">
         <div class="created-date">${formatDate(t.created_at)}</div>
         <div class="created-ago">${timeAgo(t.created_at)}</div>
       </div>
