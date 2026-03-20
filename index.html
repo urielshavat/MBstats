@@ -6,312 +6,251 @@
 <title>MoneyBoss Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Heebo:wght@300;400;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0a0a0f;
     --surface: #111118;
-    --border: #1e1e2e;
+    --border: #252535;
     --accent: #00ff88;
-    --accent2: #0088ff;
+    --accent2: #4da6ff;
     --warn: #ff6b35;
-    --text: #e8e8f0;
-    --muted: #4a4a6a;
+    --text: #f0f0fa;
+    --sub: #b0b0cc;
+    --muted: #7070a0;
     --card: #13131f;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Heebo', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 2rem;
-  }
-  .mono { font-family: 'IBM Plex Mono', monospace; }
+  body { font-family: 'Heebo', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem; }
 
-  /* Auth screen */
-  #authScreen {
-    display: flex; align-items: center; justify-content: center;
-    min-height: 100vh; margin: -2rem;
-  }
-  .auth-box {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 2.5rem;
-    width: 360px;
-    text-align: center;
-  }
-  .auth-box h1 { font-size: 1.5rem; font-weight: 900; margin-bottom: 0.5rem; }
-  .auth-box p { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
-  .auth-input {
-    width: 100%; background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; padding: 0.75rem 1rem; color: var(--text);
-    font-family: 'IBM Plex Mono', monospace; font-size: 1rem;
-    text-align: center; letter-spacing: 0.15em; margin-bottom: 1rem; outline: none;
-    transition: border-color 0.2s;
-  }
-  .auth-input:focus { border-color: var(--accent); }
-  .auth-btn {
-    width: 100%; background: var(--accent); color: #000;
-    font-weight: 900; font-size: 0.9rem; border: none;
-    padding: 0.85rem; border-radius: 8px; cursor: pointer;
-    transition: opacity 0.2s; font-family: 'Heebo', sans-serif;
-  }
-  .auth-btn:hover { opacity: 0.85; }
-  .auth-error { color: var(--warn); font-size: 0.8rem; margin-top: 0.75rem; }
-
-  /* Main dashboard */
-  #dashboard { display: block; }
-  .top-bar {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 2.5rem; padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border);
-  }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
   .top-bar h1 { font-size: 1.75rem; font-weight: 900; }
   .top-bar h1 span { color: var(--accent); }
-  .logout-btn {
-    background: transparent; border: 1px solid var(--border);
-    color: var(--muted); padding: 0.4rem 1rem; border-radius: 6px;
-    cursor: pointer; font-size: 0.8rem; transition: all 0.2s;
-    font-family: 'Heebo', sans-serif;
-  }
-  .logout-btn:hover { border-color: var(--warn); color: var(--warn); }
+  .refresh-btn { background: transparent; border: 1px solid var(--border); color: var(--sub); padding: 0.45rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; font-family: 'Heebo', sans-serif; }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* Stats row */
-  .stats-row {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 1rem; margin-bottom: 2rem;
-  }
-  .stat-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 1.25rem 1.5rem;
-  }
-  .stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; }
+  .stat-label { font-size: 0.7rem; color: var(--sub); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
   .stat-value { font-size: 2rem; font-weight: 900; font-family: 'IBM Plex Mono', monospace; }
-  .stat-value.green { color: var(--accent); }
-  .stat-value.blue  { color: var(--accent2); }
-  .stat-value.warn  { color: var(--warn); }
-
-  /* Chart */
-  .chart-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;
-  }
-  .chart-card h2 { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1.25rem; }
-  .chart-wrap { height: 200px; }
+  .green { color: var(--accent); } .blue { color: var(--accent2); } .warn { color: var(--warn); }
 
   /* Table */
-  .table-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; overflow: hidden;
-  }
+  .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 2rem; }
+  .table-title { padding: 1rem 1.5rem; font-size: 0.7rem; color: var(--sub); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
   .table-header {
-    display: grid; grid-template-columns: 1fr 100px 110px 110px 80px;
-    padding: 0.75rem 1.5rem;
-    font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em;
+    display: grid;
+    grid-template-columns: 110px 1fr 130px 130px 150px;
+    padding: 0.65rem 1.5rem;
+    font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
     border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
   }
   .token-row {
-    display: grid; grid-template-columns: 1fr 100px 110px 110px 80px;
+    display: grid;
+    grid-template-columns: 110px 1fr 130px 130px 150px;
     padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
     align-items: center; transition: background 0.15s;
   }
   .token-row:last-child { border-bottom: none; }
-  .token-row:hover { background: rgba(255,255,255,0.02); }
-  .token-code {
-    font-family: 'IBM Plex Mono', monospace; font-size: 1rem;
-    font-weight: 600; color: var(--accent); letter-spacing: 0.15em;
-  }
-  .token-created { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
-  .pill {
-    display: inline-block; padding: 0.2rem 0.6rem;
-    border-radius: 4px; font-size: 0.75rem; font-weight: 700;
-    font-family: 'IBM Plex Mono', monospace;
-  }
-  .pill-green { background: rgba(0,255,136,0.1); color: var(--accent); }
-  .pill-blue  { background: rgba(0,136,255,0.1); color: var(--accent2); }
-  .pill-warn  { background: rgba(255,107,53,0.1); color: var(--warn); }
-  .pill-muted { background: rgba(74,74,106,0.2); color: var(--muted); }
+  .token-row:hover { background: rgba(255,255,255,0.03); }
 
-  .mini-bar-wrap { display: flex; align-items: center; gap: 6px; }
-  .mini-bar { height: 4px; border-radius: 2px; background: var(--accent2); min-width: 2px; transition: width 0.4s; }
+  .token-code { font-family: 'IBM Plex Mono', monospace; font-size: 1.05rem; font-weight: 600; color: var(--accent); letter-spacing: 0.18em; }
+
+  .created-date { font-size: 0.8rem; color: var(--text); font-weight: 600; }
+  .created-ago  { font-size: 0.72rem; color: var(--sub); margin-top: 2px; }
+
+  .stat-cell { display: flex; flex-direction: column; gap: 4px; }
+  .stat-row-item { display: flex; align-items: center; gap: 8px; }
+  .stat-period { font-size: 0.62rem; color: var(--muted); width: 34px; }
+  .stat-num { font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; font-weight: 600; min-width: 28px; }
+  .bar-track { flex: 1; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+  /* Chart */
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+  .chart-card h2 { font-size: 0.7rem; color: var(--sub); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1.25rem; }
+  .chart-wrap { height: 200px; }
 
   .loading { color: var(--muted); text-align: center; padding: 3rem; font-size: 0.9rem; }
-  .refresh-btn {
-    background: transparent; border: 1px solid var(--border);
-    color: var(--muted); padding: 0.4rem 0.75rem; border-radius: 6px;
-    cursor: pointer; font-size: 0.75rem; transition: all 0.2s;
-    font-family: 'Heebo', sans-serif; margin-right: 0.5rem;
-  }
-  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-  .animate { animation: fadeUp 0.35s ease forwards; }
-  .animate-d1 { animation-delay: 0.05s; opacity:0; }
-  .animate-d2 { animation-delay: 0.1s; opacity:0; }
-  .animate-d3 { animation-delay: 0.15s; opacity:0; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .fade { animation: fadeUp 0.3s ease forwards; }
 </style>
 </head>
 <body>
+<div class="top-bar">
+  <h1>Money<span>Boss</span> <small style="font-size:0.85rem;color:var(--muted);font-weight:300">Admin</small></h1>
+  <button class="refresh-btn" onclick="loadData()">↻ רענן</button>
+</div>
 
-<div id="dashboard">
-  <div class="top-bar">
-    <h1>Money<span>Boss</span> <small style="font-size:0.9rem;color:var(--muted);font-weight:300">Admin</small></h1>
-    <div>
-      <button class="refresh-btn" onclick="loadData()">↻ רענן</button>
-      <button class="logout-btn" onclick="logout()">יציאה</button>
-    </div>
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">סה״כ משתמשים</div>
+    <div class="stat-value green" id="statUsers">—</div>
   </div>
-
-  <div class="stats-row animate animate-d1">
-    <div class="stat-card">
-      <div class="stat-label">סה״כ משתמשים</div>
-      <div class="stat-value green" id="statUsers">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">כניסות השבוע</div>
-      <div class="stat-value blue" id="statViews">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">הוצאות השבוע</div>
-      <div class="stat-value warn" id="statExpenses">—</div>
-    </div>
+  <div class="stat-card">
+    <div class="stat-label">כניסות השבוע</div>
+    <div class="stat-value blue" id="statViews">—</div>
   </div>
-
-  <div class="chart-card animate animate-d2">
-    <h2>פעילות 7 ימים אחרונים</h2>
-    <div class="chart-wrap">
-      <canvas id="activityChart"></canvas>
-    </div>
+  <div class="stat-card">
+    <div class="stat-label">הוצאות השבוע</div>
+    <div class="stat-value warn" id="statExpenses">—</div>
   </div>
+</div>
 
-  <div class="table-card animate animate-d3">
-    <div class="table-header">
-      <div>טוקן</div>
-      <div style="text-align:center">נוצר</div>
-      <div style="text-align:center">כניסות (7י׳)</div>
-      <div style="text-align:center">הוצאות (7י׳)</div>
-      <div style="text-align:center">סה״כ</div>
-    </div>
-    <div id="tokenTable"><div class="loading">טוען נתונים...</div></div>
+<!-- Token table first -->
+<div class="table-card fade">
+  <div class="table-title">משתמשים — ממוינים לפי כניסות</div>
+  <div class="table-header">
+    <div>טוקן</div>
+    <div>נוצר / גיל</div>
+    <div>כניסות</div>
+    <div>הוצאות</div>
+    <div style="padding-right:8px">כניסות לאורך זמן</div>
+  </div>
+  <div id="tokenTable"><div class="loading">טוען נתונים...</div></div>
+</div>
+
+<!-- Chart below -->
+<div class="chart-card fade">
+  <h2>פעילות 7 ימים אחרונים</h2>
+  <div class="chart-wrap">
+    <canvas id="activityChart"></canvas>
   </div>
 </div>
 
 <script>
 const SUPABASE_URL = 'https://pyesfzaeccommpwokpaq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ebHVqMPJkDUi5fpfXPnpDQ_ZQXWhmeF';
-
-let sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let chartInstance = null;
 
-function logout() { location.reload(); }
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  const w = Math.floor(d / 7);
+  const mo = Math.floor(d / 30);
+  if (mo >= 1) return `לפני ${mo} חודש${mo > 1 ? 'ים' : ''}`;
+  if (w  >= 1) return `לפני ${w} שבוע${w  > 1 ? 'ות' : ''}`;
+  if (d  >= 1) return `לפני ${d} יום${d  > 1 ? 'ים' : ''}`;
+  if (h  >= 1) return `לפני ${h} שעה${h  > 1 ? 'ות' : ''}`;
+  return `לפני ${m} דקה${m !== 1 ? 'ות' : ''}`;
+}
+
+function formatDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 
 async function loadData() {
   document.getElementById('tokenTable').innerHTML = '<div class="loading">טוען...</div>';
 
-  const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const now      = new Date();
+  const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const since7   = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // שלוף הכל במקביל
-  const [tokensRes, analyticsRes, analyticsWeekRes] = await Promise.all([
+  const [tokensRes, analyticsAllRes] = await Promise.all([
     sb.from('user_tokens').select('token, created_at').order('created_at', { ascending: false }),
-    sb.from('analytics').select('user_token, event_type, created_at').gte('created_at', since7),
     sb.from('analytics').select('user_token, event_type, created_at').gte('created_at', since7)
   ]);
 
-  const tokens   = tokensRes.data   || [];
-  const analytics = analyticsRes.data || [];
+  const tokens  = tokensRes.data    || [];
+  const analAll = analyticsAllRes.data || [];
 
-  // ── Summary stats ──────────────────────────────────────────
-  const views    = analytics.filter(a => a.event_type === 'page_view').length;
-  const expenses = analytics.filter(a => a.event_type === 'add_expense').length;
+  // Weekly totals for summary
+  const weekViews = analAll.filter(a => a.event_type === 'page_view').length;
+  const weekExp   = analAll.filter(a => a.event_type === 'add_expense').length;
+  document.getElementById('statUsers').textContent    = tokens.length;
+  document.getElementById('statViews').textContent    = weekViews;
+  document.getElementById('statExpenses').textContent = weekExp;
 
-  document.getElementById('statUsers').textContent   = tokens.length;
-  document.getElementById('statViews').textContent   = views;
-  document.getElementById('statExpenses').textContent = expenses;
+  // Per-token stats
+  const tokenStats = tokens.map(t => {
+    const mine      = analAll.filter(a => a.user_token === t.token);
+    const todayRows = mine.filter(a => a.created_at >= today);
+    return {
+      token:       t.token,
+      created_at:  t.created_at,
+      viewsToday:  todayRows.filter(a => a.event_type === 'page_view').length,
+      viewsWeek:   mine.filter(a => a.event_type === 'page_view').length,
+      expToday:    todayRows.filter(a => a.event_type === 'add_expense').length,
+      expWeek:     mine.filter(a => a.event_type === 'add_expense').length,
+    };
+  });
 
-  // ── Chart — daily activity last 7 days ────────────────────
-  const days = [];
-  const viewsByDay = [];
-  const expByDay   = [];
+  // Sort by weekly views desc
+  tokenStats.sort((a, b) => b.viewsWeek - a.viewsWeek || b.expWeek - a.expWeek);
+
+  const maxViews = Math.max(...tokenStats.map(t => t.viewsWeek), 1);
+  const maxExp   = Math.max(...tokenStats.map(t => t.expWeek),   1);
+
+  document.getElementById('tokenTable').innerHTML = tokenStats.map(t => {
+    const vBar = Math.round((t.viewsWeek / maxViews) * 100);
+    const eBar = Math.round((t.expWeek   / maxExp)   * 100);
+    return `<div class="token-row">
+      <div class="token-code" style="cursor:pointer" onclick="window.open('https://urielshavat.github.io/MoneyBoss?token=${t.token}','_blank')" title="פתח את חשבון ${t.token}">${t.token}</div>
+      <div>
+        <div class="created-date">${formatDate(t.created_at)}</div>
+        <div class="created-ago">${timeAgo(t.created_at)}</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-row-item">
+          <span class="stat-period">היום</span>
+          <span class="stat-num blue">${t.viewsToday}</span>
+        </div>
+        <div class="stat-row-item">
+          <span class="stat-period">שבוע</span>
+          <span class="stat-num blue">${t.viewsWeek}</span>
+        </div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-row-item">
+          <span class="stat-period">היום</span>
+          <span class="stat-num green">${t.expToday}</span>
+        </div>
+        <div class="stat-row-item">
+          <span class="stat-period">שבוע</span>
+          <span class="stat-num green">${t.expWeek}</span>
+        </div>
+      </div>
+      <div style="padding-right:8px">
+        <div class="bar-track" style="height:6px">
+          <div class="bar-fill" style="width:${vBar}%;background:var(--accent2);height:100%"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Chart
+  const days = [], viewsByDay = [], expByDay = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
-    const label = `${d.getDate()}/${d.getMonth()+1}`;
+    const label   = `${d.getDate()}/${d.getMonth()+1}`;
     const dateStr = d.toISOString().slice(0, 10);
     days.push(label);
-    viewsByDay.push(analytics.filter(a => a.event_type === 'page_view'  && a.created_at.startsWith(dateStr)).length);
-    expByDay.push  (analytics.filter(a => a.event_type === 'add_expense' && a.created_at.startsWith(dateStr)).length);
+    viewsByDay.push(analAll.filter(a => a.event_type === 'page_view'   && a.created_at.startsWith(dateStr)).length);
+    expByDay.push  (analAll.filter(a => a.event_type === 'add_expense' && a.created_at.startsWith(dateStr)).length);
   }
-
   if (chartInstance) chartInstance.destroy();
   chartInstance = new Chart(document.getElementById('activityChart').getContext('2d'), {
     type: 'bar',
     data: {
       labels: days,
       datasets: [
-        { label: 'כניסות',  data: viewsByDay, backgroundColor: 'rgba(0,136,255,0.5)', borderRadius: 4, borderWidth: 0 },
-        { label: 'הוצאות', data: expByDay,   backgroundColor: 'rgba(0,255,136,0.5)', borderRadius: 4, borderWidth: 0 }
+        { label: 'כניסות',  data: viewsByDay, backgroundColor: 'rgba(77,166,255,0.55)', borderRadius: 4, borderWidth: 0 },
+        { label: 'הוצאות', data: expByDay,   backgroundColor: 'rgba(0,255,136,0.55)', borderRadius: 4, borderWidth: 0 }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#4a4a6a', font: { family: 'Heebo' } } } },
+      plugins: { legend: { labels: { color: '#b0b0cc', font: { family: 'Heebo', size: 12 } } } },
       scales: {
-        x: { grid: { color: '#1e1e2e' }, ticks: { color: '#4a4a6a' } },
-        y: { grid: { color: '#1e1e2e' }, ticks: { color: '#4a4a6a' }, beginAtZero: true }
+        x: { grid: { color: '#252535' }, ticks: { color: '#b0b0cc' } },
+        y: { grid: { color: '#252535' }, ticks: { color: '#b0b0cc' }, beginAtZero: true }
       }
     }
   });
-
-  // ── Per-token stats ────────────────────────────────────────
-  const maxViews = Math.max(...tokens.map(t => analytics.filter(a => a.user_token === t.token && a.event_type === 'page_view').length), 1);
-  const maxExp   = Math.max(...tokens.map(t => analytics.filter(a => a.user_token === t.token && a.event_type === 'add_expense').length), 1);
-
-  const table = document.getElementById('tokenTable');
-  if (tokens.length === 0) {
-    table.innerHTML = '<div class="loading">אין משתמשים עדיין</div>';
-    return;
-  }
-
-  table.innerHTML = tokens.map(t => {
-    const tViews = analytics.filter(a => a.user_token === t.token && a.event_type === 'page_view').length;
-    const tExp   = analytics.filter(a => a.user_token === t.token && a.event_type === 'add_expense').length;
-    const total  = tViews + tExp;
-    const created = new Date(t.created_at).toLocaleDateString('he-IL');
-
-    const viewBarW = Math.round((tViews / maxViews) * 80);
-    const expBarW  = Math.round((tExp   / maxExp)   * 80);
-
-    const activityPill = total === 0
-      ? '<span class="pill pill-muted">לא פעיל</span>'
-      : total < 5
-        ? '<span class="pill pill-blue">נמוך</span>'
-        : total < 20
-          ? '<span class="pill pill-green">פעיל</span>'
-          : '<span class="pill pill-warn">כבד</span>';
-
-    return `<div class="token-row">
-      <div>
-        <div class="token-code">${t.token}</div>
-        <div class="token-created">${created}</div>
-      </div>
-      <div style="text-align:center;color:var(--muted);font-size:0.8rem">${created}</div>
-      <div>
-        <div class="mini-bar-wrap">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;color:var(--accent2);min-width:22px">${tViews}</span>
-          <div class="mini-bar" style="width:${viewBarW}px;background:var(--accent2)"></div>
-        </div>
-      </div>
-      <div>
-        <div class="mini-bar-wrap">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;color:var(--accent);min-width:22px">${tExp}</span>
-          <div class="mini-bar" style="width:${expBarW}px"></div>
-        </div>
-      </div>
-      <div style="text-align:center">${activityPill}</div>
-    </div>`;
-  }).join('');
 }
 
 loadData();
