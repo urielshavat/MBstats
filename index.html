@@ -40,7 +40,7 @@
   .table-title { padding: 1rem 1.5rem; font-size: 0.7rem; color: var(--sub); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
   .table-header {
     display: grid;
-    grid-template-columns: 100px 1fr 100px 100px 80px;
+    grid-template-columns: 100px 1fr 100px 100px 80px 40px;
     padding: 0.6rem 1rem;
     font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
     border-bottom: 1px solid var(--border);
@@ -48,7 +48,7 @@
   }
   .token-row {
     display: grid;
-    grid-template-columns: 100px 1fr 100px 100px 80px;
+    grid-template-columns: 100px 1fr 100px 100px 80px 40px;
     padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
     align-items: center; transition: background 0.15s;
   }
@@ -77,8 +77,8 @@
   .fade { animation: fadeUp 0.3s ease forwards; }
   @media (max-width: 600px) {
     .col-created { display: none; }
-    .table-header { grid-template-columns: 100px 100px 100px 80px !important; }
-    .token-row    { grid-template-columns: 100px 100px 100px 80px !important; }
+    .table-header { grid-template-columns: 100px 100px 100px 80px 40px !important; }
+    .token-row    { grid-template-columns: 100px 100px 100px 80px 40px !important; }
   }
 </style>
 </head>
@@ -112,6 +112,7 @@
     <div>כניסות</div>
     <div>הוצאות</div>
 <div class="col-bigbar">כניסות לאורך זמן</div>
+    <div></div>
   </div>
   <div id="tokenTable"><div class="loading">טוען נתונים...</div></div>
 </div>
@@ -220,6 +221,9 @@ async function loadData() {
         </div>
       </div>
 <div class="col-bigbar" style="padding-right:4px"><div class="bar-track" style="height:6px"><div class="bar-fill" style="width:${vBar}%;background:var(--accent2);height:100%"></div></div></div>
+      <div style="display:flex;align-items:center;justify-content:center">
+        <button onclick="promptDelete('${t.token}')" style="background:transparent;border:1px solid #3a1a1a;color:#ff4444;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.background='rgba(255,68,68,0.12)';this.style.borderColor='#ff4444'" onmouseout="this.style.background='transparent';this.style.borderColor='#3a1a1a'" title="מחק משתמש">🗑</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -286,6 +290,61 @@ function closePreview() {
   panel.style.display = 'none';
   frame.src = 'about:blank';
 }
+</script>
+<!-- Delete confirm modal -->
+<div id="deleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#13131f;border:1px solid #252535;border-radius:16px;padding:2rem;width:100%;max-width:360px;text-align:center">
+    <div style="font-size:2rem;margin-bottom:1rem">⚠️</div>
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;color:#f0f0fa">מחיקת משתמש</h3>
+    <p style="font-size:0.85rem;color:#b0b0cc;margin-bottom:0.4rem">מחיקת הטוקן:</p>
+    <p id="deleteTokenLabel" style="font-family:'IBM Plex Mono',monospace;font-size:1.2rem;font-weight:700;color:#ff6b35;letter-spacing:0.2em;margin-bottom:1rem"></p>
+    <p style="font-size:0.8rem;color:#7070a0;margin-bottom:1.5rem">פעולה זו תמחק את המשתמש, את כל תנועותיו, הגדרות התקציב ונתוני האנליטיקס שלו. לא ניתן לבטל.</p>
+    <div style="display:flex;gap:0.75rem">
+      <button onclick="confirmDelete()" style="flex:1;background:#ff4444;color:white;font-weight:700;padding:0.85rem;border-radius:10px;border:none;cursor:pointer;font-family:'Heebo',sans-serif;font-size:0.9rem;transition:opacity 0.2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">מחק לצמיתות</button>
+      <button onclick="closeDeleteModal()" style="flex:1;background:transparent;color:#b0b0cc;font-weight:700;padding:0.85rem;border-radius:10px;border:1px solid #252535;cursor:pointer;font-family:'Heebo',sans-serif;font-size:0.9rem;transition:all 0.2s" onmouseover="this.style.borderColor='#b0b0cc'" onmouseout="this.style.borderColor='#252535'">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let pendingDeleteToken = null;
+
+function promptDelete(token) {
+  pendingDeleteToken = token;
+  document.getElementById('deleteTokenLabel').textContent = token;
+  const modal = document.getElementById('deleteModal');
+  modal.style.display = 'flex';
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').style.display = 'none';
+  pendingDeleteToken = null;
+}
+
+async function confirmDelete() {
+  if (!pendingDeleteToken) return;
+  const token = pendingDeleteToken;
+  closeDeleteModal();
+
+  // מחק מכל הטבלאות
+  await Promise.all([
+    sb.from('transactions').delete().eq('user_token', token),
+    sb.from('budget_settings').delete().eq('user_token', token),
+    sb.from('analytics').delete().eq('user_token', token),
+    sb.from('user_tokens').delete().eq('token', token),
+  ]);
+
+  // אם יש תצוגה פתוחה לטוקן זה — סגור אותה
+  const label = document.getElementById('previewLabel');
+  if (label && label.textContent === token) closePreview();
+
+  loadData();
+}
+
+// סגור מודאל בלחיצה על הרקע
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
 </script>
 </body>
 </html>
