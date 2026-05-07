@@ -40,15 +40,27 @@
   .table-title { padding: 1rem 1.5rem; font-size: 0.7rem; color: var(--sub); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
   .table-header {
     display: grid;
-    grid-template-columns: 100px 1fr 100px 100px 80px 40px;
+    grid-template-columns: 100px 1fr 100px 100px 110px 110px 80px 40px;
     padding: 0.6rem 1rem;
     font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
     border-bottom: 1px solid var(--border);
     background: rgba(255,255,255,0.02);
   }
+  .table-header [data-sort] {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .table-header [data-sort]:hover { color: var(--accent); }
+  .table-header [data-sort].sort-active { color: var(--accent); }
+  .sort-arrow { font-size: 0.6rem; opacity: 0.5; }
+  .sort-active .sort-arrow { opacity: 1; }
   .token-row {
     display: grid;
-    grid-template-columns: 100px 1fr 100px 100px 80px 40px;
+    grid-template-columns: 100px 1fr 100px 100px 110px 110px 80px 40px;
     padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
     align-items: center; transition: background 0.15s;
   }
@@ -77,8 +89,8 @@
   .fade { animation: fadeUp 0.3s ease forwards; }
   @media (max-width: 600px) {
     .col-created { display: none; }
-    .table-header { grid-template-columns: 100px 100px 100px 80px 40px !important; }
-    .token-row    { grid-template-columns: 100px 100px 100px 80px 40px !important; }
+    .table-header { grid-template-columns: 100px 100px 100px 110px 110px 80px 40px !important; }
+    .token-row    { grid-template-columns: 100px 100px 100px 110px 110px 80px 40px !important; }
   }
 </style>
 </head>
@@ -107,11 +119,13 @@
 <div class="table-card fade">
   <div class="table-title">משתמשים — ממוינים לפי כניסות</div>
   <div class="table-header">
-    <div>טוקן</div>
-    <div class="col-created">נוצר / גיל</div>
-    <div>כניסות</div>
-    <div>הוצאות</div>
-<div class="col-bigbar">כניסות לאורך זמן</div>
+    <div data-sort="token">טוקן <span class="sort-arrow">↕</span></div>
+    <div class="col-created" data-sort="created_at">נוצר / גיל <span class="sort-arrow">↕</span></div>
+    <div data-sort="viewsWeek">כניסות <span class="sort-arrow">↓</span></div>
+    <div data-sort="expWeek">הוצאות <span class="sort-arrow">↕</span></div>
+    <div data-sort="balance">מאזן נוכחי <span class="sort-arrow">↕</span></div>
+    <div data-sort="lastExpDate">הוצאה אחרונה <span class="sort-arrow">↕</span></div>
+    <div class="col-bigbar">כניסות לאורך זמן</div>
     <div></div>
   </div>
   <div id="tokenTable"><div class="loading">טוען נתונים...</div></div>
@@ -138,11 +152,11 @@ function timeAgo(dateStr) {
   const d = Math.floor(h / 24);
   const w = Math.floor(d / 7);
   const mo = Math.floor(d / 30);
-  if (mo >= 1) return `לפני ${mo} חודש${mo > 1 ? 'ים' : ''}`;
-  if (w  >= 1) return `לפני ${w} שבוע${w  > 1 ? 'ות' : ''}`;
-  if (d  >= 1) return `לפני ${d} יום${d  > 1 ? 'ים' : ''}`;
-  if (h  >= 1) return `לפני ${h} שעה${h  > 1 ? 'ות' : ''}`;
-  return `לפני ${m} דקה${m !== 1 ? 'ות' : ''}`;
+  if (mo >= 1) return `לפני ${mo} ${mo > 1 ? 'חודשים' : 'חודש'}`;
+  if (w  >= 1) return `לפני ${w} ${w   > 1 ? 'שבועות' : 'שבוע'}`;
+  if (d  >= 1) return `לפני ${d} ${d   > 1 ? 'ימים'   : 'יום'}`;
+  if (h  >= 1) return `לפני ${h} ${h   > 1 ? 'שעות'   : 'שעה'}`;
+  return `לפני ${m} ${m !== 1 ? 'דקות' : 'דקה'}`;
 }
 
 function formatDate(dateStr) {
@@ -171,7 +185,7 @@ async function loadData() {
   document.getElementById('statViews').textContent    = weekViews;
   document.getElementById('statExpenses').textContent = weekExp;
 
-  // Per-token stats
+  // Per-token stats (analytics only, fast)
   const tokenStats = tokens.map(t => {
     const mine      = analAll.filter(a => a.user_token === t.token);
     const todayRows = mine.filter(a => a.created_at >= today);
@@ -182,6 +196,8 @@ async function loadData() {
       viewsWeek:   mine.filter(a => a.event_type === 'page_view').length,
       expToday:    todayRows.filter(a => a.event_type === 'add_expense').length,
       expWeek:     mine.filter(a => a.event_type === 'add_expense').length,
+      balance:     null,
+      lastExpDate: null,
     };
   });
 
@@ -191,41 +207,117 @@ async function loadData() {
   const maxViews = Math.max(...tokenStats.map(t => t.viewsWeek), 1);
   const maxExp   = Math.max(...tokenStats.map(t => t.expWeek),   1);
 
-  document.getElementById('tokenTable').innerHTML = tokenStats.map(t => {
-    const vBar = Math.round((t.viewsWeek / maxViews) * 100);
-    const eBar = Math.round((t.expWeek   / maxExp)   * 100);
-    return `<div class="token-row">
-      <div class="token-code" style="cursor:pointer" onclick="openPreview('${t.token}')" title="פתח את חשבון ${t.token}">${t.token}</div>
-      <div class="col-created">
-        <div class="created-date">${formatDate(t.created_at)}</div>
-        <div class="created-ago">${timeAgo(t.created_at)}</div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-row-item">
-          <span class="stat-period">היום</span>
-          <span class="stat-num blue">${t.viewsToday}</span>
+  // Render immediately with placeholders for balance/last-expense
+  function renderRows(stats) {
+    document.getElementById('tokenTable').innerHTML = stats.map(t => {
+      const vBar = Math.round((t.viewsWeek / maxViews) * 100);
+      const balanceHtml = t.balance === null
+        ? `<span style="color:var(--muted);font-size:0.75rem">...</span>`
+        : `<span class="stat-num" style="color:${t.balance < 0 ? 'var(--warn)' : 'var(--accent)'}; font-size:0.88rem">${t.balance.toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0})} ₪</span>`;
+      const lastExpHtml = t.lastExpDate === undefined
+        ? `<span style="color:var(--muted);font-size:0.75rem">...</span>`
+        : t.lastExpDate
+          ? `<div class="created-date" style="font-size:0.78rem">${formatDate(t.lastExpDate)}</div><div class="created-ago">${timeAgo(t.lastExpDate)}</div>`
+          : `<span style="color:var(--muted);font-size:0.75rem">אין</span>`;
+      return `<div class="token-row">
+        <div class="token-code" style="cursor:pointer" onclick="openPreview('${t.token}')" title="פתח את חשבון ${t.token}">${t.token}</div>
+        <div class="col-created">
+          <div class="created-date">${formatDate(t.created_at)}</div>
+          <div class="created-ago">${timeAgo(t.created_at)}</div>
         </div>
-        <div class="stat-row-item">
-          <span class="stat-period">שבוע</span>
-          <span class="stat-num blue">${t.viewsWeek}</span>
+        <div class="stat-cell">
+          <div class="stat-row-item">
+            <span class="stat-period">היום</span>
+            <span class="stat-num blue">${t.viewsToday}</span>
+          </div>
+          <div class="stat-row-item">
+            <span class="stat-period">שבוע</span>
+            <span class="stat-num blue">${t.viewsWeek}</span>
+          </div>
         </div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-row-item">
-          <span class="stat-period">היום</span>
-          <span class="stat-num green">${t.expToday}</span>
+        <div class="stat-cell">
+          <div class="stat-row-item">
+            <span class="stat-period">היום</span>
+            <span class="stat-num green">${t.expToday}</span>
+          </div>
+          <div class="stat-row-item">
+            <span class="stat-period">שבוע</span>
+            <span class="stat-num green">${t.expWeek}</span>
+          </div>
         </div>
-        <div class="stat-row-item">
-          <span class="stat-period">שבוע</span>
-          <span class="stat-num green">${t.expWeek}</span>
+        <div class="stat-cell" style="justify-content:center" id="bal-${t.token}">${balanceHtml}</div>
+        <div class="stat-cell" style="justify-content:center" id="last-${t.token}">${lastExpHtml}</div>
+        <div class="col-bigbar" style="padding-right:4px"><div class="bar-track" style="height:6px"><div class="bar-fill" style="width:${vBar}%;background:var(--accent2);height:100%"></div></div></div>
+        <div style="display:flex;align-items:center;justify-content:center">
+          <button onclick="promptDelete('${t.token}')" style="background:transparent;border:1px solid #3a1a1a;color:#ff4444;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.background='rgba(255,68,68,0.12)';this.style.borderColor='#ff4444'" onmouseout="this.style.background='transparent';this.style.borderColor='#3a1a1a'" title="מחק משתמש">🗑</button>
         </div>
-      </div>
-<div class="col-bigbar" style="padding-right:4px"><div class="bar-track" style="height:6px"><div class="bar-fill" style="width:${vBar}%;background:var(--accent2);height:100%"></div></div></div>
-      <div style="display:flex;align-items:center;justify-content:center">
-        <button onclick="promptDelete('${t.token}')" style="background:transparent;border:1px solid #3a1a1a;color:#ff4444;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.background='rgba(255,68,68,0.12)';this.style.borderColor='#ff4444'" onmouseout="this.style.background='transparent';this.style.borderColor='#3a1a1a'" title="מחק משתמש">🗑</button>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join('');
+  }
+
+  // ─── Sorting ───────────────────────────────────────────
+  let currentSort = { col: 'viewsWeek', dir: -1 }; // default: כניסות desc
+
+  function sortStats(stats) {
+    const { col, dir } = currentSort;
+    return [...stats].sort((a, b) => {
+      let va = a[col], vb = b[col];
+      if (va === null || va === undefined) return 1;
+      if (vb === null || vb === undefined) return -1;
+      if (typeof va === 'string') return dir * va.localeCompare(vb, 'he');
+      return dir * (va - vb);
+    });
+  }
+
+  function updateSortHeaders() {
+    document.querySelectorAll('.table-header [data-sort]').forEach(el => {
+      const col = el.dataset.sort;
+      el.classList.toggle('sort-active', col === currentSort.col);
+      const arrow = el.querySelector('.sort-arrow');
+      if (arrow) {
+        arrow.textContent = col !== currentSort.col ? '↕' : (currentSort.dir === -1 ? '↓' : '↑');
+      }
+    });
+  }
+
+  document.querySelectorAll('.table-header [data-sort]').forEach(el => {
+    el.addEventListener('click', () => {
+      const col = el.dataset.sort;
+      if (currentSort.col === col) {
+        currentSort.dir *= -1;
+      } else {
+        currentSort.col = col;
+        currentSort.dir = -1;
+      }
+      updateSortHeaders();
+      renderRows(sortStats(tokenStats));
+    });
+  });
+
+  updateSortHeaders();
+  renderRows(sortStats(tokenStats));
+
+  // Now fetch balance (via RPC) and last transaction for each token in parallel
+  await Promise.all(tokenStats.map(async t => {
+    const [balRes, txRes] = await Promise.all([
+      sb.rpc('get_balance', { p_user_token: t.token }),
+      sb.from('transactions').select('created_at').eq('user_token', t.token).order('created_at', { ascending: false }).limit(1)
+    ]);
+    t.balance     = balRes.error ? 0 : (parseFloat(balRes.data) || 0);
+    t.lastExpDate = (txRes.data && txRes.data.length > 0) ? txRes.data[0].created_at : null;
+
+    // Update just these two cells in-place
+    const balCell  = document.getElementById(`bal-${t.token}`);
+    const lastCell = document.getElementById(`last-${t.token}`);
+    if (balCell) {
+      balCell.innerHTML = `<span class="stat-num" style="color:${t.balance < 0 ? 'var(--warn)' : 'var(--accent)'}; font-size:0.88rem">${t.balance.toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0})} ₪</span>`;
+    }
+    if (lastCell) {
+      lastCell.innerHTML = t.lastExpDate
+        ? `<div class="created-date" style="font-size:0.78rem">${formatDate(t.lastExpDate)}</div><div class="created-ago">${timeAgo(t.lastExpDate)}</div>`
+        : `<span style="color:var(--muted);font-size:0.75rem">אין</span>`;
+    }
+  }));
 
   // Chart
   const days = [], viewsByDay = [], expByDay = [];
