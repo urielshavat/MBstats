@@ -38,9 +38,15 @@
   /* Table */
   .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 2rem; }
   .table-title { padding: 1rem 1.5rem; font-size: 0.7rem; color: var(--sub); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
+  .name-cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .name-text { font-size: 0.85rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .name-text:empty::before { content: '—'; color: var(--muted); }
+  .name-edit-btn { background: transparent; border: 1px solid var(--border); color: var(--sub); width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+  .name-edit-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
   .table-header {
     display: grid;
-    grid-template-columns: 100px 1fr 100px 100px 110px 110px 80px 40px;
+    grid-template-columns: 120px 100px 1fr 100px 110px 110px 40px;
     padding: 0.6rem 1rem;
     font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
     border-bottom: 1px solid var(--border);
@@ -60,7 +66,7 @@
   .sort-active .sort-arrow { opacity: 1; }
   .token-row {
     display: grid;
-    grid-template-columns: 100px 1fr 100px 100px 110px 110px 80px 40px;
+    grid-template-columns: 120px 100px 1fr 100px 110px 110px 40px;
     padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
     align-items: center; transition: background 0.15s;
   }
@@ -89,8 +95,8 @@
   .fade { animation: fadeUp 0.3s ease forwards; }
   @media (max-width: 600px) {
     .col-created { display: none; }
-    .table-header { grid-template-columns: 100px 100px 100px 110px 110px 80px 40px !important; }
-    .token-row    { grid-template-columns: 100px 100px 100px 110px 110px 80px 40px !important; }
+    .table-header { grid-template-columns: 100px 100px 100px 110px 110px 40px !important; }
+    .token-row    { grid-template-columns: 100px 100px 100px 110px 110px 40px !important; }
   }
 </style>
 </head>
@@ -119,13 +125,12 @@
 <div class="table-card fade">
   <div class="table-title">משתמשים — ממוינים לפי כניסות</div>
   <div class="table-header">
+    <div>שם</div>
     <div data-sort="token">טוקן <span class="sort-arrow">↕</span></div>
     <div class="col-created" data-sort="created_at">נוצר / גיל <span class="sort-arrow">↕</span></div>
     <div data-sort="viewsWeek">כניסות <span class="sort-arrow">↓</span></div>
-    <div data-sort="expWeek">הוצאות <span class="sort-arrow">↕</span></div>
     <div data-sort="balance">מאזן נוכחי <span class="sort-arrow">↕</span></div>
     <div data-sort="lastExpDate">הוצאה אחרונה <span class="sort-arrow">↕</span></div>
-    <div class="col-bigbar">כניסות לאורך זמן</div>
     <div></div>
   </div>
   <div id="tokenTable"><div class="loading">טוען נתונים...</div></div>
@@ -144,6 +149,29 @@ const SUPABASE_URL = 'https://pyesfzaeccommpwokpaq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ebHVqMPJkDUi5fpfXPnpDQ_ZQXWhmeF';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let chartInstance = null;
+
+const NAMES_KEY = 'mbstats_token_names';
+function getNames() {
+  try { return JSON.parse(localStorage.getItem(NAMES_KEY) || '{}'); } catch { return {}; }
+}
+function setName(token, name) {
+  const names = getNames();
+  const trimmed = name.trim();
+  if (trimmed) names[token] = trimmed;
+  else delete names[token];
+  localStorage.setItem(NAMES_KEY, JSON.stringify(names));
+}
+function editName(token) {
+  const names = getNames();
+  const newName = prompt('שם:', names[token] || '');
+  if (newName === null) return;
+  setName(token, newName);
+  const cell = document.getElementById(`name-${token}`);
+  if (cell) cell.querySelector('.name-text').textContent = newName.trim();
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -194,23 +222,19 @@ async function loadData() {
       created_at:  t.created_at,
       viewsToday:  todayRows.filter(a => a.event_type === 'page_view').length,
       viewsWeek:   mine.filter(a => a.event_type === 'page_view').length,
-      expToday:    todayRows.filter(a => a.event_type === 'add_expense').length,
-      expWeek:     mine.filter(a => a.event_type === 'add_expense').length,
       balance:     null,
       lastExpDate: null,
     };
   });
 
   // Sort by weekly views desc
-  tokenStats.sort((a, b) => b.viewsWeek - a.viewsWeek || b.expWeek - a.expWeek);
+  tokenStats.sort((a, b) => b.viewsWeek - a.viewsWeek);
 
-  const maxViews = Math.max(...tokenStats.map(t => t.viewsWeek), 1);
-  const maxExp   = Math.max(...tokenStats.map(t => t.expWeek),   1);
+  const names = getNames();
 
   // Render immediately with placeholders for balance/last-expense
   function renderRows(stats) {
     document.getElementById('tokenTable').innerHTML = stats.map(t => {
-      const vBar = Math.round((t.viewsWeek / maxViews) * 100);
       const balanceHtml = t.balance === null
         ? `<span style="color:var(--muted);font-size:0.75rem">...</span>`
         : `<span class="stat-num" style="color:${t.balance < 0 ? 'var(--warn)' : 'var(--accent)'}; font-size:0.88rem">${t.balance.toLocaleString('he-IL', {minimumFractionDigits:0, maximumFractionDigits:0})} ₪</span>`;
@@ -219,7 +243,12 @@ async function loadData() {
         : t.lastExpDate
           ? `<div class="created-date" style="font-size:0.78rem">${formatDate(t.lastExpDate)}</div><div class="created-ago">${timeAgo(t.lastExpDate)}</div>`
           : `<span style="color:var(--muted);font-size:0.75rem">אין</span>`;
+      const displayName = names[t.token] || '';
       return `<div class="token-row">
+        <div class="name-cell" id="name-${t.token}">
+          <span class="name-text">${escHtml(displayName)}</span>
+          <button class="name-edit-btn" onclick="editName('${t.token}')" title="ערוך שם">✎</button>
+        </div>
         <div class="token-code" style="cursor:pointer" onclick="openPreview('${t.token}')" title="פתח את חשבון ${t.token}">${t.token}</div>
         <div class="col-created">
           <div class="created-date">${formatDate(t.created_at)}</div>
@@ -235,19 +264,8 @@ async function loadData() {
             <span class="stat-num blue">${t.viewsWeek}</span>
           </div>
         </div>
-        <div class="stat-cell">
-          <div class="stat-row-item">
-            <span class="stat-period">היום</span>
-            <span class="stat-num green">${t.expToday}</span>
-          </div>
-          <div class="stat-row-item">
-            <span class="stat-period">שבוע</span>
-            <span class="stat-num green">${t.expWeek}</span>
-          </div>
-        </div>
         <div class="stat-cell" style="justify-content:center" id="bal-${t.token}">${balanceHtml}</div>
         <div class="stat-cell" style="justify-content:center" id="last-${t.token}">${lastExpHtml}</div>
-        <div class="col-bigbar" style="padding-right:4px"><div class="bar-track" style="height:6px"><div class="bar-fill" style="width:${vBar}%;background:var(--accent2);height:100%"></div></div></div>
         <div style="display:flex;align-items:center;justify-content:center">
           <button onclick="promptDelete('${t.token}')" style="background:transparent;border:1px solid #3a1a1a;color:#ff4444;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.background='rgba(255,68,68,0.12)';this.style.borderColor='#ff4444'" onmouseout="this.style.background='transparent';this.style.borderColor='#3a1a1a'" title="מחק משתמש">🗑</button>
         </div>
@@ -425,6 +443,10 @@ async function confirmDelete() {
     sb.from('analytics').delete().eq('user_token', token),
     sb.from('user_tokens').delete().eq('token', token),
   ]);
+
+  const names = getNames();
+  delete names[token];
+  localStorage.setItem(NAMES_KEY, JSON.stringify(names));
 
   // אם יש תצוגה פתוחה לטוקן זה — סגור אותה
   const label = document.getElementById('previewLabel');
