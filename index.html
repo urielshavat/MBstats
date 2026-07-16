@@ -38,6 +38,15 @@
   /* Table */
   .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 2rem; }
   .table-title { padding: 1rem 1.5rem; font-size: 0.7rem; color: var(--sub); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .table-scroll .table-header,
+  .table-scroll .token-row {
+    min-width: 700px;
+  }
   .name-cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .name-text { font-size: 0.85rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
   .name-text:empty::before { content: '—'; color: var(--muted); }
@@ -91,10 +100,54 @@
   .chart-wrap { height: 200px; }
 
   .loading { color: var(--muted); text-align: center; padding: 3rem; font-size: 0.9rem; }
+
+  /* Preview overlay */
+  #previewPanel {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: var(--bg);
+    flex-direction: column;
+  }
+  #previewPanel.open { display: flex; }
+  .preview-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+  .preview-close-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--sub);
+    padding: 0.3rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: 'Heebo', sans-serif;
+    transition: all 0.2s;
+  }
+  .preview-close-btn:hover { border-color: var(--warn); color: var(--warn); }
+  #previewFrame {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    border: none;
+    background: #0a0a0f;
+  }
+  body.preview-open { overflow: hidden; }
+
   @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
   .fade { animation: fadeUp 0.3s ease forwards; }
   @media (max-width: 600px) {
+    body { padding: 1rem; }
     .col-created { display: none; }
+    .table-scroll .table-header,
+    .table-scroll .token-row { min-width: 580px; }
     .table-header { grid-template-columns: 100px 100px 100px 110px 110px 40px !important; }
     .token-row    { grid-template-columns: 100px 100px 100px 110px 110px 40px !important; }
   }
@@ -124,16 +177,18 @@
 <!-- Token table first -->
 <div class="table-card fade">
   <div class="table-title">משתמשים — ממוינים לפי כניסות</div>
-  <div class="table-header">
-    <div>שם</div>
-    <div data-sort="token">טוקן <span class="sort-arrow">↕</span></div>
-    <div class="col-created" data-sort="created_at">נוצר / גיל <span class="sort-arrow">↕</span></div>
-    <div data-sort="viewsWeek">כניסות <span class="sort-arrow">↓</span></div>
-    <div data-sort="balance">מאזן נוכחי <span class="sort-arrow">↕</span></div>
-    <div data-sort="lastExpDate">הוצאה אחרונה <span class="sort-arrow">↕</span></div>
-    <div></div>
+  <div class="table-scroll">
+    <div class="table-header">
+      <div>שם</div>
+      <div data-sort="token">טוקן <span class="sort-arrow">↕</span></div>
+      <div class="col-created" data-sort="created_at">נוצר / גיל <span class="sort-arrow">↕</span></div>
+      <div data-sort="viewsWeek">כניסות <span class="sort-arrow">↓</span></div>
+      <div data-sort="balance">מאזן נוכחי <span class="sort-arrow">↕</span></div>
+      <div data-sort="lastExpDate">הוצאה אחרונה <span class="sort-arrow">↕</span></div>
+      <div></div>
+    </div>
+    <div id="tokenTable"><div class="loading">טוען נתונים...</div></div>
   </div>
-  <div id="tokenTable"><div class="loading">טוען נתונים...</div></div>
 </div>
 
 <!-- Chart below -->
@@ -371,17 +426,14 @@ async function loadData() {
 loadData();
 </script>
 <!-- Preview panel -->
-<div id="previewPanel" style="display:none;margin-top:2rem">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+<div id="previewPanel">
+  <div class="preview-toolbar">
     <div style="font-size:0.7rem;color:var(--sub);text-transform:uppercase;letter-spacing:0.1em">
       תצוגה: <span id="previewLabel" style="color:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:0.9rem;letter-spacing:0.18em"></span>
     </div>
-    <button onclick="closePreview()" style="background:transparent;border:1px solid var(--border);color:var(--sub);padding:0.3rem 0.75rem;border-radius:6px;cursor:pointer;font-size:0.75rem;font-family:'Heebo',sans-serif;transition:all 0.2s" onmouseover="this.style.borderColor='var(--warn)';this.style.color='var(--warn)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--sub)'">✕ סגור</button>
+    <button class="preview-close-btn" onclick="closePreview()">✕ סגור</button>
   </div>
-  <iframe id="previewFrame"
-    style="width:100%;height:780px;border:1px solid var(--border);border-radius:12px;background:#0a0a0f"
-    src="about:blank">
-  </iframe>
+  <iframe id="previewFrame" src="about:blank"></iframe>
 </div>
 
 <script>
@@ -391,13 +443,14 @@ function openPreview(token) {
   const label = document.getElementById('previewLabel');
   label.textContent = token;
   frame.src = 'https://urielshavat.github.io/MoneyBoss?token=' + token;
-  panel.style.display = 'block';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  panel.classList.add('open');
+  document.body.classList.add('preview-open');
 }
 function closePreview() {
   const panel = document.getElementById('previewPanel');
   const frame = document.getElementById('previewFrame');
-  panel.style.display = 'none';
+  panel.classList.remove('open');
+  document.body.classList.remove('preview-open');
   frame.src = 'about:blank';
 }
 </script>
