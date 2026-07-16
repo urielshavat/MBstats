@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MoneyBoss Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -105,20 +105,31 @@
   #previewPanel {
     display: none;
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
     z-index: 90;
     background: var(--bg);
-    flex-direction: column;
+    direction: ltr;
+    overflow: hidden;
   }
-  #previewPanel.open { display: flex; }
+  #previewPanel.open { display: block; }
   .preview-toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-shrink: 0;
-    padding: 0.75rem 1.25rem;
+    min-height: var(--preview-toolbar-h, 48px);
+    height: calc(var(--preview-toolbar-h, 48px) + env(safe-area-inset-top, 0));
+    padding: env(safe-area-inset-top, 0) 1rem 0;
     border-bottom: 1px solid var(--border);
     background: var(--card);
+    direction: rtl;
+    position: relative;
+    z-index: 2;
   }
   .preview-close-btn {
     background: transparent;
@@ -130,16 +141,34 @@
     font-size: 0.75rem;
     font-family: 'Heebo', sans-serif;
     transition: all 0.2s;
+    touch-action: manipulation;
   }
   .preview-close-btn:hover { border-color: var(--warn); color: var(--warn); }
-  #previewFrame {
-    flex: 1;
+  .preview-frame-wrap {
+    position: absolute;
+    top: calc(var(--preview-toolbar-h, 48px) + env(safe-area-inset-top, 0));
+    left: 0;
+    right: 0;
+    bottom: env(safe-area-inset-bottom, 0);
     width: 100%;
-    min-height: 0;
+    overflow: hidden;
+    direction: ltr;
+  }
+  #previewFrame {
+    display: block;
+    width: 100%;
+    height: 100%;
     border: none;
     background: #0a0a0f;
+    touch-action: manipulation;
   }
-  body.preview-open { overflow: hidden; }
+  body.preview-open {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    overflow: hidden;
+  }
 
   @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
   .fade { animation: fadeUp 0.3s ease forwards; }
@@ -433,25 +462,42 @@ loadData();
     </div>
     <button class="preview-close-btn" onclick="closePreview()">✕ סגור</button>
   </div>
-  <iframe id="previewFrame" src="about:blank"></iframe>
+  <div class="preview-frame-wrap">
+    <iframe id="previewFrame" src="about:blank" title="תצוגת משתמש"></iframe>
+  </div>
 </div>
 
 <script>
+let previewScrollY = 0;
+
 function openPreview(token) {
   const panel = document.getElementById('previewPanel');
   const frame = document.getElementById('previewFrame');
   const label = document.getElementById('previewLabel');
+
+  previewScrollY = window.scrollY;
+  document.querySelectorAll('.table-scroll').forEach(el => { el.scrollLeft = 0; });
+  window.scrollTo(0, 0);
+
   label.textContent = token;
-  frame.src = 'https://urielshavat.github.io/MoneyBoss?token=' + token;
+  frame.src = 'about:blank';
+  document.body.style.top = `-${previewScrollY}px`;
   panel.classList.add('open');
   document.body.classList.add('preview-open');
+
+  const url = 'https://urielshavat.github.io/MoneyBoss?token=' + token;
+  requestAnimationFrame(() => {
+    frame.src = url;
+  });
 }
 function closePreview() {
   const panel = document.getElementById('previewPanel');
   const frame = document.getElementById('previewFrame');
   panel.classList.remove('open');
   document.body.classList.remove('preview-open');
+  document.body.style.top = '';
   frame.src = 'about:blank';
+  window.scrollTo(0, previewScrollY);
 }
 </script>
 <!-- Delete confirm modal -->
