@@ -48,15 +48,16 @@
   .table-scroll .token-row {
     min-width: 700px;
   }
-  .name-cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
-  .name-text { font-size: 0.85rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
-  .name-text:empty::before { content: '—'; color: var(--muted); }
-  .name-edit-btn { background: transparent; border: 1px solid var(--border); color: var(--sub); width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+  .name-token-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; cursor: pointer; }
+  .name-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .name-text { font-size: 0.78rem; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .name-text:empty { display: none; }
+  .name-edit-btn { background: transparent; border: 1px solid var(--border); color: var(--sub); width: 22px; height: 22px; border-radius: 5px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
   .name-edit-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 
   .table-header {
     display: grid;
-    grid-template-columns: 120px 100px 1fr 100px 110px 110px 40px;
+    grid-template-columns: 150px 1fr 100px 110px 110px 40px;
     padding: 0.6rem 1rem;
     font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
     border-bottom: 1px solid var(--border);
@@ -76,7 +77,7 @@
   .sort-active .sort-arrow { opacity: 1; }
   .token-row {
     display: grid;
-    grid-template-columns: 120px 100px 1fr 100px 110px 110px 40px;
+    grid-template-columns: 150px 1fr 100px 110px 110px 40px;
     padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
     align-items: center; transition: background 0.15s;
   }
@@ -201,9 +202,9 @@
     body { padding: 1rem; }
     .col-created { display: none; }
     .table-scroll .table-header,
-    .table-scroll .token-row { min-width: 580px; }
-    .table-header { grid-template-columns: 100px 100px 100px 110px 110px 40px !important; }
-    .token-row    { grid-template-columns: 100px 100px 100px 110px 110px 40px !important; }
+    .table-scroll .token-row { min-width: 480px; }
+    .table-header { grid-template-columns: 120px 90px 100px 105px 40px !important; }
+    .token-row    { grid-template-columns: 120px 90px 100px 105px 40px !important; }
   }
 </style>
 </head>
@@ -233,8 +234,7 @@
   <div class="table-title">משתמשים — ממוינים לפי כניסות</div>
   <div class="table-scroll">
     <div class="table-header">
-      <div>שם</div>
-      <div data-sort="token">טוקן <span class="sort-arrow">↕</span></div>
+      <div data-sort="token">שם / טוקן <span class="sort-arrow">↕</span></div>
       <div class="col-created" data-sort="created_at">נוצר / גיל <span class="sort-arrow">↕</span></div>
       <div data-sort="viewsWeek">כניסות <span class="sort-arrow">↓</span></div>
       <div data-sort="balance">מאזן נוכחי <span class="sort-arrow">↕</span></div>
@@ -358,11 +358,13 @@ async function loadData() {
           : `<span style="color:var(--muted);font-size:0.75rem">אין</span>`;
       const displayName = names[t.token] || '';
       return `<div class="token-row">
-        <div class="name-cell" id="name-${t.token}">
-          <span class="name-text">${escHtml(displayName)}</span>
-          <button class="name-edit-btn" onclick="editName('${t.token}')" title="ערוך שם">✎</button>
+        <div class="name-token-cell" onclick="openPreview('${t.token}')" title="פתח את חשבון ${t.token}">
+          <div class="name-cell" id="name-${t.token}">
+            <span class="name-text">${escHtml(displayName)}</span>
+            <button class="name-edit-btn" onclick="event.stopPropagation();editName('${t.token}')" title="ערוך שם">✎</button>
+          </div>
+          <div class="token-code">${t.token}</div>
         </div>
-        <div class="token-code" style="cursor:pointer" onclick="openPreview('${t.token}')" title="פתח את חשבון ${t.token}">${t.token}</div>
         <div class="col-created">
           <div class="created-date">${formatDate(t.created_at)}</div>
           <div class="created-ago">${timeAgo(t.created_at)}</div>
@@ -595,4 +597,27 @@ async function confirmDelete() {
 
   // מחק מכל הטבלאות
   await Promise.all([
-    sb.from('transactions').delete().eq('user_token', 
+    sb.from('transactions').delete().eq('user_token', token),
+    sb.from('budget_settings').delete().eq('user_token', token),
+    sb.from('analytics').delete().eq('user_token', token),
+    sb.from('user_tokens').delete().eq('token', token),
+  ]);
+
+  const names = getNames();
+  delete names[token];
+  localStorage.setItem(NAMES_KEY, JSON.stringify(names));
+
+  // אם יש תצוגה פתוחה לטוקן זה — סגור אותה
+  const label = document.getElementById('previewLabel');
+  if (label && label.textContent === token) closePreview();
+
+  loadData();
+}
+
+// סגור מודאל בלחיצה על הרקע
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
+</script>
+</body>
+</html>
